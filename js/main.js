@@ -535,10 +535,19 @@ var SITE_CONFIG = {
   if (reduceMotion.matches || !("IntersectionObserver" in window)) {
     segDisplays.forEach(segFinal);
   } else {
-    var sio = new IntersectionObserver(function (entries) {
-      entries.forEach(function (e) { if (e.isIntersecting) { segPowerOn(e.target); sio.unobserve(e.target); } });
-    }, { rootMargin: "0px 0px -15% 0px" });
-    segDisplays.forEach(function (sv) { sio.observe(sv); });
+    // Aan zodra een display (bijna) in beeld komt of al voorbij is: ook bij snel swipen
+    var pending = segDisplays.slice();
+    var checkSeg = function () {
+      pending = pending.filter(function (sv) {
+        if (sv.getBoundingClientRect().top < window.innerHeight * 0.88) { segPowerOn(sv); return false; }
+        return true;
+      });
+      if (!pending.length) window.removeEventListener("scroll", onSegScroll);
+    };
+    var segTick = false;
+    var onSegScroll = function () { if (!segTick) { segTick = true; requestAnimationFrame(function () { segTick = false; checkSeg(); }); } };
+    window.addEventListener("scroll", onSegScroll, { passive: true });
+    checkSeg();
   }
 
   /* ---------- Beweging (GSAP) ---------- */
