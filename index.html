@@ -200,11 +200,12 @@
         </div>
 
         <div class="switchboard" data-switchboard>
+          <svg class="switch-cable" aria-hidden="true" focusable="false"><path class="cable-base" d=""/><path class="cable-flow" d=""/><circle class="cable-plug" r="5" cx="-20" cy="-20"/></svg>
           <ul class="switch-list" role="tablist" aria-label="Diensten" data-reveal>
-            <li><button class="switch-btn" type="button" role="tab" id="tab-woningen" aria-controls="dienst-woningen" aria-selected="true"><span class="dot" aria-hidden="true"></span>Woningen</button></li>
-            <li><button class="switch-btn" type="button" role="tab" id="tab-domotica" aria-controls="dienst-domotica" aria-selected="false" tabindex="-1"><span class="dot" aria-hidden="true"></span>Domotica</button></li>
-            <li><button class="switch-btn" type="button" role="tab" id="tab-data" aria-controls="dienst-data" aria-selected="false" tabindex="-1"><span class="dot" aria-hidden="true"></span>Data en netwerk</button></li>
-            <li><button class="switch-btn" type="button" role="tab" id="tab-industrie" aria-controls="dienst-industrie" aria-selected="false" tabindex="-1"><span class="dot" aria-hidden="true"></span>Industrie en kantoor</button></li>
+            <li><button class="switch-btn" type="button" role="tab" id="tab-woningen" aria-controls="dienst-woningen" aria-selected="true"><span class="rocker" aria-hidden="true"><span class="rocker-led"></span></span>Woningen</button></li>
+            <li><button class="switch-btn" type="button" role="tab" id="tab-domotica" aria-controls="dienst-domotica" aria-selected="false" tabindex="-1"><span class="rocker" aria-hidden="true"><span class="rocker-led"></span></span>Domotica</button></li>
+            <li><button class="switch-btn" type="button" role="tab" id="tab-data" aria-controls="dienst-data" aria-selected="false" tabindex="-1"><span class="rocker" aria-hidden="true"><span class="rocker-led"></span></span>Data en netwerk</button></li>
+            <li><button class="switch-btn" type="button" role="tab" id="tab-industrie" aria-controls="dienst-industrie" aria-selected="false" tabindex="-1"><span class="rocker" aria-hidden="true"><span class="rocker-led"></span></span>Industrie en kantoor</button></li>
           </ul>
 
           <div class="switch-panels" data-reveal>

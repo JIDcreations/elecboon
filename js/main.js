@@ -156,14 +156,61 @@ var SITE_CONFIG = {
     var panels = tabs.map(function (t) { return document.getElementById(t.getAttribute("aria-controls")); });
     var desktop = window.matchMedia("(min-width: 1024px)");
 
+    var activeIndex = 0;
+    var cable = board.querySelector(".switch-cable");
+    var cBase = cable ? cable.querySelector(".cable-base") : null, cFlow = cable ? cable.querySelector(".cable-flow") : null, cPlug = cable ? cable.querySelector(".cable-plug") : null;
+    var drawCable = function (animate) {
+      if (!cable || !desktop.matches) return;
+      var br = board.getBoundingClientRect();
+      var list = board.querySelector(".switch-list").getBoundingClientRect();
+      var btn = tabs[activeIndex].getBoundingClientRect();
+      var media = panels[activeIndex].querySelector(".panel-media").getBoundingClientRect();
+      if (!media.width) return;
+      // De kabel vertrekt onder de schakelaar, loopt langs de lijn onder de actieve rij en gaat naar de foto
+      var rock = tabs[activeIndex].querySelector(".rocker").getBoundingClientRect();
+      var rx = rock.left + rock.width / 2 - br.left, ry = rock.bottom - br.top;
+      var y1 = btn.bottom - br.top - 0.5;
+      var x1 = list.right - br.left + 14;
+      var x2 = media.left - br.left - 4;
+      var y2 = Math.min(Math.max(y1, media.top - br.top + 28), media.bottom - br.top - 28);
+      var xm = (x1 + x2) / 2, dy = y2 - y1, c = Math.min(Math.abs(dy) / 2, 26), sg = dy > 0 ? 1 : -1;
+      var d = "M" + rx + "," + ry + " V" + (y1 - 8) + " L" + (rx + 8) + "," + y1 + " H" + x1;
+      d += Math.abs(dy) < 1 ? " H" + x2 : " H" + (xm - c) + " L" + xm + "," + (y1 + sg * c) + " V" + (y2 - sg * c) + " L" + (xm + c) + "," + y2 + " H" + x2;
+      cBase.setAttribute("d", d); cFlow.setAttribute("d", d);
+      cPlug.setAttribute("cx", x2); cPlug.setAttribute("cy", y2);
+      if (animate && !reduceMotion.matches) {
+        var len = cBase.getTotalLength();
+        cFlow.style.opacity = "0"; cPlug.style.opacity = "0";
+        cBase.style.transition = "none"; cBase.style.strokeDasharray = len; cBase.style.strokeDashoffset = len;
+        void cBase.getBoundingClientRect();
+        cBase.style.transition = "stroke-dashoffset 360ms cubic-bezier(0.23, 1, 0.32, 1)"; cBase.style.strokeDashoffset = "0";
+        clearTimeout(drawCable.t);
+        drawCable.t = setTimeout(function () { cFlow.style.opacity = "1"; cPlug.style.opacity = "1"; cBase.style.strokeDasharray = "none"; }, 360);
+      }
+    };
     var activate = function (index) {
+      var changed = index !== activeIndex;
+      activeIndex = index;
       tabs.forEach(function (t, i) {
         var on = i === index;
         t.setAttribute("aria-selected", String(on));
         t.tabIndex = on ? 0 : -1;
         panels[i].classList.toggle("is-active", on);
       });
+      if (changed && !reduceMotion.matches) {
+        var pnl = panels[index];
+        pnl.classList.remove("is-powering"); void pnl.offsetWidth; pnl.classList.add("is-powering");
+        setTimeout(function () { pnl.classList.remove("is-powering"); }, 620);
+      }
+      drawCable(changed);
     };
+    var cableRaf = 0;
+    var queueCable = function () { cancelAnimationFrame(cableRaf); cableRaf = requestAnimationFrame(function () { drawCable(false); }); };
+    window.addEventListener("scroll", queueCable, { passive: true });
+    window.addEventListener("resize", queueCable);
+    window.addEventListener("load", queueCable);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(queueCable);
+    queueCable();
     tabs.forEach(function (t, i) {
       t.addEventListener("click", function () { activate(i); });
       // Op een muis volgt het paneel de cursor: de lijst werkt als schakelaars
@@ -253,7 +300,7 @@ var SITE_CONFIG = {
       filterBar.textContent = "";
       [{ id: "alle", label: "Alle" }].concat(categories).forEach(function (opt) {
         var btn = el("button", { type: "button", "aria-pressed": opt.id === "alle" ? "true" : "false", "data-filter": opt.id }, [
-          el("span", { className: "dot", "aria-hidden": "true" }),
+          el("span", { className: "toggle", "aria-hidden": "true" }),
           opt.label,
           el("span", { className: "count", "aria-hidden": "true", text: String(countFor(opt.id)) })
         ]);
@@ -266,6 +313,34 @@ var SITE_CONFIG = {
       });
     }
     applyFilter("alle", false);
+
+    // Licht aan per project: bij hover op desktop, in het midden van het scherm op touch
+    var flicker = function (it) {
+      if (reduceMotion.matches) return;
+      it.classList.remove("is-flickering"); void it.offsetWidth; it.classList.add("is-flickering");
+      setTimeout(function () { it.classList.remove("is-flickering"); }, 560);
+    };
+    var light = function (it, on) {
+      if (on && !it.classList.contains("is-lit")) { it.classList.add("is-lit"); flicker(it); }
+      if (!on) it.classList.remove("is-lit");
+    };
+    if (reduceMotion.matches) {
+      items.forEach(function (it) { it.classList.add("is-lit"); });
+    } else if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+      items.forEach(function (it) {
+        it.addEventListener("mouseenter", function () { light(it, true); });
+        it.addEventListener("mouseleave", function () { light(it, false); });
+        it.addEventListener("focusin", function () { light(it, true); });
+        it.addEventListener("focusout", function () { light(it, false); });
+      });
+    } else if ("IntersectionObserver" in window) {
+      var lio = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) { light(e.target, e.isIntersecting); });
+      }, { rootMargin: "-30% 0px -30% 0px" });
+      items.forEach(function (it) { lio.observe(it); });
+    } else {
+      items.forEach(function (it) { it.classList.add("is-lit"); });
+    }
   }
 
   /* ---------- Reviews: één grote quote, wisselen via tabs ---------- */
@@ -406,6 +481,66 @@ var SITE_CONFIG = {
     });
   });
 
+
+  /* ---------- ISS-cijfers als 7-segment LED-displays ---------- */
+  var SEGMAP = { "0": "abcdef", "1": "bc", "2": "abged", "3": "abgcd", "4": "fgbc", "5": "afgcd", "6": "afgedc", "7": "abc", "8": "abcdefg", "9": "abcdfg", "A": "abcefg" };
+  var buildSeg = function (str) {
+    var ns = "http://www.w3.org/2000/svg", W = 56, Hh = 100, t = 11, g = 2, adv = 68;
+    var svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("class", "seg"); svg.setAttribute("aria-hidden", "true"); svg.setAttribute("focusable", "false");
+    svg.setAttribute("viewBox", "-6 -2 " + (str.length * adv - (adv - W) + 14) + " " + (Hh + 4));
+    var hseg = function (yc) { var x0 = t / 2 + g, x1 = W - t / 2 - g; return [[x0, yc], [x0 + t / 2, yc - t / 2], [x1 - t / 2, yc - t / 2], [x1, yc], [x1 - t / 2, yc + t / 2], [x0 + t / 2, yc + t / 2]]; };
+    var vseg = function (xc, y0, y1) { return [[xc, y0], [xc + t / 2, y0 + t / 2], [xc + t / 2, y1 - t / 2], [xc, y1], [xc - t / 2, y1 - t / 2], [xc - t / 2, y0 + t / 2]]; };
+    var mid = Hh / 2, L = t / 2, R = W - t / 2;
+    var geo = { a: hseg(t / 2), g: hseg(mid), d: hseg(Hh - t / 2), f: vseg(L, t / 2 + g, mid - g), b: vseg(R, t / 2 + g, mid - g), e: vseg(L, mid + g, Hh - t / 2 - g), c: vseg(R, mid + g, Hh - t / 2 - g) };
+    str.split("").forEach(function (ch, i) {
+      var grp = document.createElementNS(ns, "g");
+      grp.setAttribute("transform", "translate(" + (i * adv + 7) + " 0) skewX(-7)");
+      "abcdefg".split("").forEach(function (k) {
+        var poly = document.createElementNS(ns, "polygon");
+        poly.setAttribute("points", geo[k].map(function (pt) { return pt[0] + "," + pt[1]; }).join(" "));
+        poly.setAttribute("class", "s");
+        if ((SEGMAP[ch] || "").indexOf(k) > -1) poly.setAttribute("data-on", "");
+        grp.appendChild(poly);
+      });
+      svg.appendChild(grp);
+    });
+    return svg;
+  };
+  var segDisplays = [];
+  document.querySelectorAll(".stat-value").forEach(function (sv) {
+    var small = sv.querySelector("small");
+    var first = sv.firstChild;
+    var num = first && first.nodeType === 3 ? first.nodeValue.trim() : sv.textContent.trim();
+    if (!/^[0-9A]+$/.test(num)) return;
+    var svg = buildSeg(num);
+    sv.textContent = "";
+    sv.appendChild(el("span", { className: "visually-hidden", text: num + (small ? " " + small.textContent : "") }));
+    sv.appendChild(svg);
+    if (small) { small.setAttribute("aria-hidden", "true"); sv.appendChild(small); }
+    sv.classList.add("has-seg");
+    segDisplays.push(sv);
+  });
+  var segFinal = function (sv) { sv.querySelectorAll(".s").forEach(function (p) { p.classList.toggle("on", p.hasAttribute("data-on")); }); };
+  var segPowerOn = function (sv) {
+    // lamptest: alle segmenten even aan, daarna springen de juiste segmenten aan
+    var all = Array.prototype.slice.call(sv.querySelectorAll(".s"));
+    all.forEach(function (p) { p.classList.add("on"); });
+    setTimeout(function () {
+      all.forEach(function (p) { p.classList.remove("on"); });
+      var targets = all.filter(function (p) { return p.hasAttribute("data-on"); }).sort(function () { return Math.random() - 0.5; });
+      targets.forEach(function (p, i) { setTimeout(function () { p.classList.add("on"); }, 120 + i * 22); });
+    }, 260);
+  };
+  if (reduceMotion.matches || !("IntersectionObserver" in window)) {
+    segDisplays.forEach(segFinal);
+  } else {
+    var sio = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { segPowerOn(e.target); sio.unobserve(e.target); } });
+    }, { rootMargin: "0px 0px -15% 0px" });
+    segDisplays.forEach(function (sv) { sio.observe(sv); });
+  }
+
   /* ---------- Beweging (GSAP) ---------- */
   // Elke animatie heeft een reden: de lichten gaan aan (hero), de stroom loopt
   // door de fasen (aanpak), inhoud komt in volgorde binnen (reveal).
@@ -429,10 +564,53 @@ var SITE_CONFIG = {
     if (heroMedia) {
       // Een zwarte laag boven de foto dooft uit: de lichten gaan aan.
       // De foto zelf wordt niet geanimeerd, zodat hij meteen als geladen telt.
+      // De ledpanelen in het plafond van de foto springen aan, van achter in de gang naar voor.
+      // Coördinaten in pixels van de originele foto (1000 x 750).
+      var heroImg = heroMedia.querySelector("img");
+      var VP = [860, 255];
+      var PANELS = [
+        [862, 258, 30, 5], [858, 248, 40, 6], [740, 267, 30, 5], [620, 262, 30, 4], [555, 271, 30, 4],
+        [853, 238, 55, 8], [688, 253, 40, 6], [856, 224, 65, 10], [675, 235, 60, 8], [470, 265, 40, 5],
+        [392, 252, 55, 7], [850, 188, 85, 12], [612, 208, 80, 11], [280, 258, 40, 6], [280, 233, 50, 8],
+        [495, 153, 125, 22], [835, 114, 130, 20], [205, 22, 190, 40]
+      ];
+      var mapPt = function (nx, ny) {
+        var r = heroMedia.getBoundingClientRect();
+        var sc = Math.max(r.width / 1000, r.height / 750);
+        var pos = (getComputedStyle(heroImg).objectPosition || "50% 50%").split(" ");
+        var px = parseFloat(pos[0]) / 100, py = parseFloat(pos[1] || pos[0]) / 100;
+        return { x: (r.width - 1000 * sc) * px + nx * sc, y: (r.height - 750 * sc) * py + ny * sc, s: sc, w: r.width, h: r.height };
+      };
+      var vp = mapPt(VP[0], VP[1]);
       var dim = el("span", { className: "hero-dim", "aria-hidden": "true" });
+      var mask = "radial-gradient(circle at " + vp.x + "px " + vp.y + "px, transparent var(--r), #000 calc(var(--r) + 260px))";
+      dim.style.webkitMaskImage = mask; dim.style.maskImage = mask; dim.style.setProperty("--r", "0px");
+      var glowWrap = el("span", { className: "hero-glows", "aria-hidden": "true" });
+      var glows = PANELS.slice().sort(function (a, b) {
+        return Math.hypot(a[0] - VP[0], a[1] - VP[1]) - Math.hypot(b[0] - VP[0], b[1] - VP[1]);
+      }).map(function (pnl) {
+        var m = mapPt(pnl[0], pnl[1]);
+        var g = el("span", { className: "hero-glow" });
+        g.style.left = m.x + "px"; g.style.top = m.y + "px";
+        g.style.width = Math.max(30, pnl[2] * m.s * 2.4) + "px"; g.style.height = Math.max(14, pnl[3] * m.s * 5) + "px";
+        glowWrap.appendChild(g);
+        return g;
+      });
       heroMedia.appendChild(dim);
-      var tl = gsap.timeline({ defaults: { ease: ease } });
-      tl.fromTo(dim, { opacity: 0.85 }, { opacity: 0, duration: 1.6, ease: "power2.inOut", onComplete: function () { dim.remove(); } })
+      heroMedia.appendChild(glowWrap);
+      var far = Math.max(Math.hypot(vp.x, vp.y), Math.hypot(vp.w - vp.x, vp.y), Math.hypot(vp.x, vp.h - vp.y), Math.hypot(vp.w - vp.x, vp.h - vp.y));
+      var reach = { r: 0 };
+      var h1 = document.getElementById("hero-title");
+      var tl = gsap.timeline({ defaults: { ease: ease }, onComplete: function () { dim.remove(); glowWrap.remove(); } });
+      tl.set(dim, { opacity: 0.9 }, 0);
+      glows.forEach(function (g, i) {
+        var d = 0.15 + i * 0.055;
+        tl.set(g, { opacity: 0.95 }, d).set(g, { opacity: 0.2 }, d + 0.05).set(g, { opacity: 1 }, d + 0.1)
+          .to(g, { opacity: 0, duration: 0.9, ease: "power2.out" }, d + 0.45);
+      });
+      tl.to(reach, { r: far + 60, duration: 1.5, ease: "power2.in", onUpdate: function () { dim.style.setProperty("--r", reach.r + "px"); } }, 0.25)
+        .set(h1, { opacity: 0.12 }, 0).set(h1, { opacity: 0.85 }, 0.32).set(h1, { opacity: 0.25 }, 0.38)
+        .set(h1, { opacity: 1 }, 0.46).set(h1, { opacity: 0.55 }, 0.6).set(h1, { opacity: 1 }, 0.66)
         .fromTo(heroBits, { y: 20 }, { y: 0, duration: 0.9, stagger: 0.08, clearProps: "transform" }, 0.1);
       // Lichte parallax bij het wegscrollen
       gsap.to(heroMedia, { yPercent: 12, ease: "none", scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: true } });
@@ -640,6 +818,9 @@ var SITE_CONFIG = {
       var title = formSteps[i].querySelector(".step-title");
       if (stepStatus) stepStatus.textContent = title ? title.textContent : "";
       if (focus) {
+        var entering = formSteps[i];
+        entering.classList.remove("is-entering"); void entering.offsetWidth; entering.classList.add("is-entering");
+        setTimeout(function () { entering.classList.remove("is-entering"); }, 420);
         var top = form.getBoundingClientRect().top;
         if (top < 0 || top > window.innerHeight * 0.4) form.scrollIntoView({ behavior: reduceMotion.matches ? "auto" : "smooth", block: "start" });
         if (title) title.focus({ preventScroll: true });
