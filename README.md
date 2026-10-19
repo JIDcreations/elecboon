@@ -9,6 +9,7 @@ index.html            One-pager: hero, diensten, waarom Boon, projecten, reviews
 projecten/iss.html    Uitgewerkte case ISS
 privacy.html          Privacyverklaring (ontwerptekst, laten nakijken)
 css/style.css         Alle stijlen; kleuren, typografie en spacing als custom properties bovenaan
+css/fonts-file.css    Dezelfde fonts ingebed, enkel geladen als een pagina lokaal (file://) geopend wordt. Online niet gebruikt. Opnieuw maken als de fonts wijzigen
 js/main.js            Menu, schakelbord diensten, projectfilter, reviews, animaties, formulier. Configuratie bovenaan (SITE_CONFIG)
 js/vendor/            GSAP 3.12.5 + ScrollTrigger (lokaal, geen CDN). Zonder JS of met 'beperk beweging' blijft alles zichtbaar
 data/projects.js      Projecten en filtercategorieën

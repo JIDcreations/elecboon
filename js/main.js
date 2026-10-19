@@ -567,6 +567,21 @@ var SITE_CONFIG = {
     gsap.registerPlugin(ScrollTrigger);
     var ease = "power3.out";
 
+    // ScrollTrigger springt bij het meten even naar boven; met scroll-behavior: smooth
+    // gebeurt dat niet meteen en kloppen alle posities niet meer (zwart gat bij de tijdlijn).
+    // Daarom staat smooth scroll uit en scrollen ankerlinks hier zelf zacht.
+    document.documentElement.style.scrollBehavior = "auto";
+    document.addEventListener("click", function (e) {
+      var link = e.target.closest('a[href^="#"]');
+      if (!link || e.defaultPrevented) return;
+      var id = link.getAttribute("href").slice(1);
+      var target = id ? document.getElementById(id) : null;
+      if (!target) return;
+      e.preventDefault();
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+      history.pushState(null, "", "#" + id);
+    });
+
     // 1. Hero: foto komt van donker naar licht, tekst volgt
     var heroMedia = document.querySelector("[data-hero-media]");
     var heroBits = document.querySelectorAll("[data-hero-in]");

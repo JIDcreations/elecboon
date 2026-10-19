@@ -11,6 +11,8 @@
   <link rel="preload" href="fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="fonts/hanken-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="css/style.css">
+  <!-- Lokaal geopend (file://)? Dan blokkeert de browser de fontbestanden: laad de ingebedde versie. -->
+  <script>if (location.protocol === "file:") document.write('<link rel="stylesheet" href="css/fonts-file.css">');</script>
 </head>
 <body class="no-hero" data-root="">
   <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
